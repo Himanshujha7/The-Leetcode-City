@@ -13,6 +13,14 @@ import type { CityBuilding } from "@/lib/github";
 import type { BuildingColors } from "./CityCanvas";
 
 const GRID_CELL_SIZE = 200;
+const WEATHER_PARTICLE_COUNT = 900;
+const WEATHER_AREA = 2200;
+const WEATHER_TOP = 420;
+const WEATHER_BOTTOM = 10;
+const pseudoRandom = (seed: number) => {
+  const x = Math.sin(seed * 12.9898) * 43758.5453123;
+  return x - Math.floor(x);
+};
 
 // Pre-allocated temp vector for focus info projection
 const _position = new THREE.Vector3();
@@ -78,6 +86,47 @@ interface CitySceneProps {
   holdRise?: boolean;
   liveByLogin?: Map<string, LiveSession>;
   cityEnergy?: number;
+}
+
+function RainWeather() {
+  const pointsRef = useRef<THREE.Points>(null);
+  const { positions, speeds } = useMemo(() => {
+    const positions = new Float32Array(WEATHER_PARTICLE_COUNT * 3);
+    const speeds = new Float32Array(WEATHER_PARTICLE_COUNT);
+    for (let i = 0; i < WEATHER_PARTICLE_COUNT; i++) {
+      const base = i * 3;
+      positions[base] = (pseudoRandom(i * 3 + 1) - 0.5) * WEATHER_AREA;
+      positions[base + 1] = WEATHER_BOTTOM + pseudoRandom(i * 3 + 2) * (WEATHER_TOP - WEATHER_BOTTOM);
+      positions[base + 2] = (pseudoRandom(i * 3 + 3) - 0.5) * WEATHER_AREA;
+      speeds[i] = 120 + pseudoRandom(i * 3 + 4) * 150;
+    }
+    return { positions, speeds };
+  }, []);
+
+  useFrame((state, delta) => {
+    const pts = pointsRef.current;
+    if (!pts) return;
+    const arr = (pts.geometry.attributes.position.array as Float32Array);
+    for (let i = 0; i < WEATHER_PARTICLE_COUNT; i++) {
+      const base = i * 3;
+      arr[base + 1] -= speeds[i] * delta;
+      if (arr[base + 1] < WEATHER_BOTTOM) {
+        arr[base] = (pseudoRandom(i * 17 + state.clock.elapsedTime) - 0.5) * WEATHER_AREA;
+        arr[base + 1] = WEATHER_TOP;
+        arr[base + 2] = (pseudoRandom(i * 19 + state.clock.elapsedTime * 1.7) - 0.5) * WEATHER_AREA;
+      }
+    }
+    pts.geometry.attributes.position.needsUpdate = true;
+  });
+
+  return (
+    <points ref={pointsRef} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#a7c7ff" size={2} sizeAttenuation transparent opacity={0.45} depthWrite={false} />
+    </points>
+  );
 }
 
 export default function CityScene({
@@ -198,6 +247,8 @@ export default function CityScene({
         flyMode={flyMode}
         ghostPreviewLogin={ghostPreviewLogin}
       />
+
+      {!introMode && <RainWeather />}
 
       {/* FocusBeacon: standalone, only when a building is focused */}
       {!introMode && focusedBuildingData && (
