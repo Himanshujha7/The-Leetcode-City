@@ -2808,7 +2808,11 @@ function HomeContent() {
                                     navigator.clipboard.writeText(data.key);
                                     setVsCodeKeyCopied(true);
                                     setTimeout(() => setVsCodeKeyCopied(false), 2000);
+                                  } else {
+                                    alert(data.error || "Failed to generate key. Make sure you're signed in and have claimed your building.");
                                   }
+                                } catch {
+                                  alert("Network error. Please try again.");
                                 } finally {
                                   setVsCodeKeyLoading(false);
                                 }
