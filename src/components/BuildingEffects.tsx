@@ -1503,7 +1503,7 @@ export const LEDBanner = memo(function LEDBanner({
   });
 
   // Render actual text if provided, otherwise render the abstract blocks
-  if (text) {
+  if (text && text.trim().length > 0) {
     const textGroupRef = useRef<THREE.Group>(null);
     useFrame((state) => {
       if (!textGroupRef.current) return;

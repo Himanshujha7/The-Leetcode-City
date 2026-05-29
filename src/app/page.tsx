@@ -4396,7 +4396,7 @@ function HomeContent() {
               You unlocked {streakData.streak_reward.item_name}
             </p>
             <Link
-              href={`/shop/${authLogin}`}
+              href="/shop"
               className="btn-press block w-full py-1.5 text-center text-[9px] text-bg"
               style={{
                 backgroundColor: theme.accent,
