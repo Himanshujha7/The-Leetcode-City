@@ -925,8 +925,9 @@ export default function ShopClient({
     setSavingCustomization(itemId);
     setSavedCustomization(null);
     try {
-      const res = await fetch("/api/customizations", {
+      const res = await fetch(`/api/customizations?t=${Date.now()}`, {
         method: "POST",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item_id: itemId, ...payload }),
       });
