@@ -11,7 +11,7 @@ import LiveDots from "./LiveDots";
 import type { LiveSession } from "@/lib/useCodingPresence";
 import type { CityBuilding } from "@/lib/github";
 import type { BuildingColors } from "./CityCanvas";
-import { DynamicSky } from "./DynamicSky";
+
 
 const GRID_CELL_SIZE = 200;
 const WEATHER_PARTICLE_COUNT = 900;
@@ -97,85 +97,6 @@ function buildLookup(buildings: CityBuilding[]): BuildingLookup {
   return { indexByLogin };
 }
 
-// ─── Day/Night Environment (Sky, Sun, Moon & Stars) ─────────────
-function DayNightEnvironment({ colors }: { colors: BuildingColors }) {
-  const { scene } = useThree();
-  const sunRef = useRef<THREE.DirectionalLight>(null);
-  const moonRef = useRef<THREE.DirectionalLight>(null);
-  const starsRef = useRef<THREE.Points>(null);
-
-  const starGeo = useMemo(() => {
-    const positions = new Float32Array(3000 * 3);
-    for (let i = 0; i < 3000; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 4000;
-      positions[i * 3 + 1] = Math.random() * 1000 + 300;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 4000;
-    }
-    return positions;
-  }, []);
-
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime * 0.05;
-    const timeOfDay = (Math.sin(t) + 1.0) / 2.0; // Matches InstancedBuildings cycle
-
-    const dayColor = new THREE.Color("#4a7cff");
-    const sunsetColor = new THREE.Color("#ff7b00");
-    const nightColor = new THREE.Color("#050814");
-
-    let currentColor = new THREE.Color();
-    if (timeOfDay > 0.5) {
-      currentColor.lerpColors(sunsetColor, dayColor, (timeOfDay - 0.5) * 2.0);
-    } else {
-      currentColor.lerpColors(nightColor, sunsetColor, timeOfDay * 2.0);
-    }
-
-    scene.background = currentColor;
-    if (scene.fog) {
-      scene.fog.color.copy(currentColor);
-    }
-
-    if (sunRef.current) {
-      sunRef.current.position.set(Math.cos(t) * 800, Math.sin(t) * 800, -400);
-      sunRef.current.intensity = Math.max(0, Math.sin(t)) * 2.5;
-    }
-    if (moonRef.current) {
-      moonRef.current.position.set(
-        Math.cos(t + Math.PI) * 800,
-        Math.sin(t + Math.PI) * 800,
-        -400,
-      );
-      moonRef.current.intensity = Math.max(0, Math.sin(t + Math.PI)) * 1.5;
-    }
-
-    if (starsRef.current) {
-      const mat = starsRef.current.material as THREE.PointsMaterial;
-      mat.opacity = Math.max(0, 1.0 - timeOfDay * 2.0);
-    }
-  });
-
- return (
-    <group>
-      <directionalLight ref={sunRef} color="#ffeedd" />
-      <directionalLight ref={moonRef} color="#aaccff" />
-      <ambientLight intensity={0.2} />
-      <points ref={starsRef} frustumCulled={false}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[starGeo, 3]} />
-        </bufferGeometry>
-        <pointsMaterial
-          color="#ffffff"
-          size={2}
-          sizeAttenuation={false}
-          transparent
-          opacity={0}
-          depthWrite={false}
-        />
-      </points>
-      <DynamicSky />
-      <DayNightEnvironment colors={colors} /> 
-    </group>
-  );
-}
 
 // ─── Component ──────────────────────────────────────────────────
 interface CitySceneProps {
@@ -340,8 +261,7 @@ export default function CityScene({
         cityEnergy={cityEnergy}
       />
 
-      {/* Renders Day, Night, Stars dynamically */}
-      <DayNightEnvironment colors={colors} />
+
 
       {liveByLogin && liveByLogin.size > 0 && (
         <LiveDots buildings={buildings} liveByLogin={liveByLogin} />

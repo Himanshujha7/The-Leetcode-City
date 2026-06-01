@@ -239,14 +239,19 @@ export default memo(function InstancedBuildings({
       vertexShader,
       fragmentShader,
     });
-  }, [
-    atlasTexture,
-    colors.roof,
-    colors.face,
-    dimOpacity,
-    dimEmissive,
-    cityEnergy,
-  ]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update uniforms in-place when theme/atlas changes so the instancedMesh
+  // is NOT recreated (which would lose all instance attributes).
+  useEffect(() => {
+    material.uniforms.uAtlas.value = atlasTexture;
+    material.uniforms.uRoofColor.value.set(colors.roof);
+    material.uniforms.uFaceColor.value.set(colors.face);
+    material.uniforms.uDimOpacity.value = dimOpacity;
+    material.uniforms.uDimEmissive.value = dimEmissive;
+    material.uniforms.uCityEnergy.value = cityEnergy;
+    material.needsUpdate = true;
+  }, [atlasTexture, colors.roof, colors.face, dimOpacity, dimEmissive, cityEnergy, material]);
 
   const { uvFrontData, uvSideData, riseData, tintData, lcData } =
     useMemo(() => {
@@ -428,7 +433,9 @@ export default memo(function InstancedBuildings({
     const timeCycle = (Math.sin(clock.elapsedTime * 0.05) + 1.0) / 2.0;
     material.uniforms.uTimeOfDay.value = timeCycle;
 
-    if (fog.near !== lastFogNear.current || fog.far !== lastFogFar.current) {
+    const lastFogColorHex = material.uniforms.uFogColor.value.getHex();
+    const currentFogHex = fog.color.getHex();
+    if (fog.near !== lastFogNear.current || fog.far !== lastFogFar.current || currentFogHex !== lastFogColorHex) {
       material.uniforms.uFogColor.value.copy(fog.color);
       material.uniforms.uFogNear.value = fog.near;
       material.uniforms.uFogFar.value = fog.far;

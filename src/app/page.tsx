@@ -1537,7 +1537,7 @@ function HomeContent() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let cityStats: any = null;
 
-    // Try pre-computed snapshot first (disabled to bypass legacy LeetCode snapshots)
+    // Try pre-computed snapshot first (disabled — snapshot bucket doesn't exist yet for LC city)
     // try {
     //   const v = Math.floor(Date.now() / 300_000);
     //   const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}${cacheBust ? `&_t=${Date.now()}` : ""}`;
@@ -1561,20 +1561,23 @@ function HomeContent() {
 
       const total = cityStats?.total_developers ?? 0;
       if (total > CHUNK && allDevs.length > 0) {
-        const promises: Promise<{
-          developers: typeof data.developers;
-        } | null>[] = [];
-        for (let from = CHUNK; from < total; from += CHUNK) {
-          promises.push(
-            fetch(`/api/city?from=${from}&to=${from + CHUNK}${cbParam}`).then(
-              (r) => (r.ok ? r.json() : null),
-            ),
-          );
-        }
-        const results = await Promise.all(promises);
-        for (const chunk of results) {
-          if (chunk?.developers?.length) {
-            allDevs = [...allDevs, ...chunk.developers];
+        // Batch fetch chunks to prevent overwhelming the server/browser
+        for (let i = CHUNK; i < total; i += CHUNK * 3) {
+          const batchPromises: Promise<{ developers: typeof data.developers } | null>[] = [];
+          for (let j = 0; j < 3; j++) {
+            const from = i + (j * CHUNK);
+            if (from >= total) break;
+            batchPromises.push(
+              fetch(`/api/city?from=${from}&to=${from + CHUNK}${cbParam}`).then(
+                (r) => (r.ok ? r.json() : null),
+              )
+            );
+          }
+          const results = await Promise.all(batchPromises);
+          for (const chunk of results) {
+            if (chunk?.developers?.length) {
+              allDevs = [...allDevs, ...chunk.developers];
+            }
           }
         }
       }
@@ -1664,7 +1667,7 @@ function HomeContent() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let cityStats: any = null;
 
-        // Try pre-computed snapshot first (disabled to bypass legacy LeetCode snapshot data)
+        // Try pre-computed snapshot first (disabled — snapshot bucket doesn't exist yet for LC city)
         // try {
         //   const v = Math.floor(Date.now() / 300_000); // changes every 5 min, aligned with cron
         //   const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}`;
@@ -1692,20 +1695,23 @@ function HomeContent() {
 
           const total = cityStats?.total_developers ?? 0;
           if (total > CHUNK && allDevs.length > 0) {
-            const promises: Promise<{
-              developers: typeof data.developers;
-            } | null>[] = [];
-            for (let from = CHUNK; from < total; from += CHUNK) {
-              promises.push(
-                fetch(
-                  `/api/city?from=${from}&to=${from + CHUNK}${cacheBuster}`,
-                ).then((r) => (r.ok ? r.json() : null)),
-              );
-            }
-            const results = await Promise.all(promises);
-            for (const chunk of results) {
-              if (chunk?.developers?.length) {
-                allDevs = [...allDevs, ...chunk.developers];
+            // Batch fetch chunks to prevent overwhelming the server/browser
+            for (let i = CHUNK; i < total; i += CHUNK * 3) {
+              const batchPromises: Promise<{ developers: typeof data.developers } | null>[] = [];
+              for (let j = 0; j < 3; j++) {
+                const from = i + (j * CHUNK);
+                if (from >= total) break;
+                batchPromises.push(
+                  fetch(
+                    `/api/city?from=${from}&to=${from + CHUNK}${cacheBuster}`,
+                  ).then((r) => (r.ok ? r.json() : null)),
+                );
+              }
+              const results = await Promise.all(batchPromises);
+              for (const chunk of results) {
+                if (chunk?.developers?.length) {
+                  allDevs = [...allDevs, ...chunk.developers];
+                }
               }
             }
           }

@@ -433,8 +433,16 @@ function rebuildCircularCityDecorations(
     Math.ceil((cityRadius - CIRCULAR_EDGE_PADDING) / CIRCULAR_RING_SPACING),
   );
 
+  // Maximum radius for decorations — must stay well inside the visual platform
+  // The platform extends to cityRadius + 120 visually, but keep decorations
+  // comfortably inside so nothing floats near or over the edge
+  const maxDecoRadius = cityRadius - 40;
+
   for (let ring = 1; ring <= ringCount; ring++) {
     const radius = CIRCULAR_CENTER_CLEARANCE + ring * CIRCULAR_RING_SPACING;
+    // Skip this ring entirely if it's beyond the platform edge
+    if (radius > maxDecoRadius) continue;
+
     const plazaCount = ring === 1 ? 4 : 6;
     for (let i = 0; i < plazaCount; i++) {
       const angle = (i / plazaCount) * Math.PI * 2 + ring * 0.31;

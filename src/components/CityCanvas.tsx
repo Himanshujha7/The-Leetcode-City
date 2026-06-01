@@ -84,7 +84,7 @@ const THEMES: CityTheme[] = [
       windowOff: "#0c0e18", face: "#101828", roof: "#2a3858",
       accent: "#ffa116",
     },
-    waterColor: "#0a1830", waterEmissive: "#0a2050", dockColor: "#3a2818",
+    waterColor: "#0c2848", waterEmissive: "#1040a0", dockColor: "#3a2818",
   },
   // 1 – Sunset
   {
@@ -106,7 +106,7 @@ const THEMES: CityTheme[] = [
       windowOff: "#1a1018", face: "#281828", roof: "#604050",
       accent: "#ffa116",
     },
-    waterColor: "#1a2040", waterEmissive: "#102060", dockColor: "#4a3020",
+    waterColor: "#2a2850", waterEmissive: "#3030a0", dockColor: "#4a3020",
   },
   // 2 – Neon
   {
@@ -128,7 +128,7 @@ const THEMES: CityTheme[] = [
       windowOff: "#0a0814", face: "#180830", roof: "#3c1858",
       accent: "#e040c0",
     },
-    waterColor: "#0c0830", waterEmissive: "#1008a0", dockColor: "#2a1838",
+    waterColor: "#180848", waterEmissive: "#2010c0", dockColor: "#2a1838",
   },
   // 3 – Emerald
   {
@@ -150,9 +150,20 @@ const THEMES: CityTheme[] = [
       windowOff: "#060e08", face: "#0c1810", roof: "#1e4028",
       accent: "#f0c060",
     },
-    waterColor: "#082018", waterEmissive: "#0a3020", dockColor: "#3a2818",
+    waterColor: "#103830", waterEmissive: "#186048", dockColor: "#3a2818",
   },
 ];
+
+// ─── Scene Background ────────────────────────────────────────
+// Sets scene.background to the fog color so that areas beyond the fog
+// don't render as black. This also provides the backdrop behind the SkyDome.
+function SceneBackground({ color }: { color: string }) {
+  const { scene } = useThree();
+  useEffect(() => {
+    scene.background = new THREE.Color(color);
+  }, [color, scene]);
+  return null;
+}
 
 // ─── Sky Dome ────────────────────────────────────────────────
 
@@ -1100,36 +1111,41 @@ function CameraReset() {
 // ─── Ground ──────────────────────────────────────────────────
 
 function Ground({ color, grid1, grid2 }: { color: string; grid1: string; grid2: string }) {
-  return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
-        <planeGeometry args={[20000, 20000]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} roughness={0.95} />
-      </mesh>
-      <gridHelper args={[4000, 200, grid1, grid2]} position={[0, -0.5, 0]} />
-    </group>
-  );
+  return null;
 }
 
 function CircularCityPlatform({ radius, color }: { radius: number; color: string }) {
-  const supportColumns = useMemo(() => {
+  const platformRadius = radius + 120;
+
+  const { supportColumns, concretePaths } = useMemo(() => {
     const columns: [number, number][] = [];
-    const count = 18;
+    const colCount = 18;
     const columnRadius = Math.max(180, radius * 0.78);
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2;
+    for (let i = 0; i < colCount; i++) {
+      const angle = (i / colCount) * Math.PI * 2;
       columns.push([
         Math.cos(angle) * columnRadius,
         Math.sin(angle) * columnRadius,
       ]);
     }
-    return columns;
-  }, [radius]);
 
-  const platformRadius = radius + 120;
+    // Concrete ring paths matching decoration ring positions
+    // These are the same radii used in rebuildCircularCityDecorations
+    const CENTER_CLEARANCE = 170;
+    const RING_SPACING = 72;
+    const paths: number[] = [];
+    let ring = 1;
+    while (CENTER_CLEARANCE + ring * RING_SPACING < platformRadius - 20) {
+      paths.push(CENTER_CLEARANCE + ring * RING_SPACING);
+      ring++;
+    }
+
+    return { supportColumns: columns, concretePaths: paths };
+  }, [radius, platformRadius]);
 
   return (
     <group>
+      {/* Platform base (cylinder wall) */}
       <mesh position={[0, -14, 0]}>
         <cylinderGeometry args={[platformRadius, platformRadius + 44, 28, 128]} />
         <meshStandardMaterial
@@ -1140,6 +1156,7 @@ function CircularCityPlatform({ radius, color }: { radius: number; color: string
           metalness={0.05}
         />
       </mesh>
+      {/* Platform top surface */}
       <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[platformRadius, 128]} />
         <meshStandardMaterial
@@ -1149,6 +1166,19 @@ function CircularCityPlatform({ radius, color }: { radius: number; color: string
           roughness={0.9}
         />
       </mesh>
+      {/* Concrete ring paths (walkways where trees/lamps sit) */}
+      {concretePaths.map((r) => (
+        <mesh key={`path-${r}`} position={[0, 0.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[r - 16, r + 16, 128]} />
+          <meshStandardMaterial
+            color="#4a5564"
+            emissive="#2a3040"
+            emissiveIntensity={0.2}
+            roughness={0.95}
+          />
+        </mesh>
+      ))}
+      {/* Perimeter decorative torus rings */}
       {[0.48, 0.68, 0.86, 1].map((scale) => (
         <mesh
           key={scale}
@@ -1164,6 +1194,7 @@ function CircularCityPlatform({ radius, color }: { radius: number; color: string
           />
         </mesh>
       ))}
+      {/* Support columns underneath */}
       {supportColumns.map(([x, z], i) => (
         <mesh key={i} position={[x, -48, z]}>
           <cylinderGeometry args={[9, 15, 80, 10]} />
@@ -2070,6 +2101,7 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
       {showPerf && <Stats />}
       <CityExposure cityEnergy={cityEnergy ?? 1} />
       <fog attach="fog" args={[t.fogColor, t.fogNear, t.fogFar]} key={`fog-${themeIndex}`} />
+      <SceneBackground color={t.fogColor} key={`bg-${themeIndex}`} />
 
 
       <ambientLight intensity={t.ambientIntensity * 3} color={t.ambientColor} />
@@ -2138,17 +2170,7 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
         );
       })()}
 
-      {river && (
-        <>
-          <River river={river} waterColor={t.waterColor} waterEmissive={t.waterEmissive} />
-          <RiverText river={river} />
-          <Waterfront river={river} dockColor={t.dockColor} />
-        </>
-      )}
 
-      {bridges?.map((b, i) => (
-        <Bridge key={`bridge-${i}`} bridge={b} />
-      ))}
 
       <CityScene
         buildings={buildings}
